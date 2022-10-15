@@ -22,11 +22,6 @@ def xml2jsonl(fp, index, filepath) :
 	fp_in = open(filepath, mode='r', encoding='utf-8')
 	data = xmltodict.parse(fp_in.read())
 
-	#timestamp = data['testsuites']['testsuite']['@timestamp']
-	#dt = dateutil.parser.parse(timestamp)
-
-	#index_str = 'mydata-{0:04d}.{1:02d}.{2:02d}'.format(dt.year, dt.month, dt.day)
-
 	index_data = {
 		"index" : {
 			"_index" : index,
@@ -40,29 +35,40 @@ def xml2jsonl(fp, index, filepath) :
 	if not 'testsuite' in data['testsuites'] :
 		print('no testsuite in {0}'.format(filepath))
 		sys.exit(1)
-	
-	if not 'testcase' in data['testsuites']['testsuite'] :
-		print('no testsuite in {0}'.format(filepath))
+
+	if isinstance(data['testsuites']['testsuite'], list) :
+		testsuites = data['testsuites']['testsuite']
+	elif 'testcase' in data['testsuites']['testsuite'] :
+		testsuites = [ data['testsuites']['testsuite'] ]
+	elif not 'testcase' in data['testsuites']['testsuite'] :
+		print('no testcase in {0}'.format(filepath))
 		sys.exit(1)
 
-	for testcase in data['testsuites']['testsuite']['testcase'] :
-		fp.write(
-			json.dumps(
-				index_data,
-				ensure_ascii=False,
-			)
-		)
-		fp.write('\n')
-		
-		fp.write(
-			json.dumps(
-				testcase,
-				ensure_ascii=False,
-			)
-		)
-		fp.write('\n')
+	for testsuite in testsuites :
+		testcases = testsuite['testcase']
+		for testcase in testcases :
+			if not 'failure' in testcase :
+				testcase['success'] = {
+					'@message' : 'passed'
+				}
 
-		count += 1
+			fp.write(
+				json.dumps(
+					index_data,
+					ensure_ascii=False,
+				)
+			)
+			fp.write('\n')
+		
+			fp.write(
+				json.dumps(
+					testcase,
+					ensure_ascii=False,
+				)
+			)
+			fp.write('\n')
+
+			count += 1
 
 	fp_in.close()
 
